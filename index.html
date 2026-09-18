@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NELPRO Car Parking Events</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#09090b;color:#fff;font-family:Arial,sans-serif}
+header{padding:22px;background:linear-gradient(135deg,#111,#252525);border-bottom:1px solid #444}
+main{max-width:850px;margin:auto;padding:18px}h1{margin:0;font-size:24px}
+.card,.event{background:#151519;border:1px solid #333;border-radius:16px;padding:16px;margin:12px 0}
+input,textarea,button{width:100%;padding:12px;margin:6px 0;border-radius:10px;border:1px solid #444;background:#0d0d10;color:white}
+button{background:#fff;color:#000;font-weight:bold;border:0}.tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.small{color:#aaa;font-size:13px}.hidden{display:none}.badge{display:inline-block;background:#29292e;padding:5px 9px;border-radius:20px;font-size:12px}
+</style></head>
+<body>
+<header><h1>🚗 NELPRO Car Parking Events</h1><div>Carro rebaixado não anda, desfila.</div></header>
+<main>
+<div id="login" class="card"><h2>Entrar</h2>
+<p class="small">Use o e-mail para criar seu perfil. Nunca informe aqui a senha da sua conta do jogo.</p>
+<input id="email" type="email" placeholder="Seu e-mail"><input id="name" placeholder="Nome do jogador">
+<button onclick="login()">Entrar</button></div>
+<div id="app" class="hidden">
+<div class="tabs"><button onclick="tab('events')">🏁 Eventos</button><button onclick="tab('create')">➕ Publicar</button></div>
+<section id="events" class="card"><h2>Eventos públicos</h2><div id="list">Carregando...</div></section>
+<section id="create" class="card hidden"><h2>Novo evento</h2>
+<input id="title" placeholder="Nome do evento"><input id="date" type="date"><input id="time" type="time">
+<input id="place" placeholder="Local"><input id="cars" placeholder="Carros">
+<textarea id="description" placeholder="Descrição"></textarea><button onclick="createEvent()">Publicar evento</button>
+</section>
+</div></main>
+<script>
+let token=localStorage.getItem("nelproToken");
+const $=id=>document.getElementById(id);
+async function login(){
+ const email=$("email").value.trim(),name=$("name").value.trim();
+ if(!email||!name)return alert("Preencha e-mail e nome.");
+ const r=await fetch("/api/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,name})});
+ const d=await r.json(); if(!r.ok)return alert(d.error);
+ token=d.token;localStorage.setItem("nelproToken",token);openApp();
+}
+function openApp(){$("login").classList.add("hidden");$("app").classList.remove("hidden");loadEvents()}
+function tab(id){$("events").classList.toggle("hidden",id!=="events");$("create").classList.toggle("hidden",id!=="create")}
+async function loadEvents(){
+ const r=await fetch("/api/events");const es=await r.json();
+ $("list").innerHTML=es.length?es.map(e=>`<div class="event"><h3>${esc(e.title)}</h3><span class="badge">📅 ${esc(e.date)} · ${esc(e.time)}</span><p>📍 ${esc(e.place||"Local não informado")}</p><p>🚘 ${esc(e.cars||"Não informado")}</p><p>${esc(e.description||"")}</p><div class="small">Publicado por ${esc(e.author)}</div></div>`).join(""):"<p class='small'>Nenhum evento publicado ainda.</p>";
+}
+async function createEvent(){
+ const body={title:$("title").value.trim(),date:$("date").value,time:$("time").value,place:$("place").value,cars:$("cars").value,description:$("description").value};
+ const r=await fetch("/api/events",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify(body)});
+ const d=await r.json();if(!r.ok)return alert(d.error);
+ ["title","date","time","place","cars","description"].forEach(x=>$(x).value="");tab("events");loadEvents();
+}
+function esc(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]))}
+if(token)openApp();
+</script></body></html>
